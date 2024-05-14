@@ -18,6 +18,8 @@ using json = nlohmann::json;
 #include "requests.hpp"
 #include "helpers.hpp"
 
+#define SPACE_INDENT 4
+
 #define HOST "34.246.184.49"
 #define PORT 8080
 #define COMMAND_SIZE 64
@@ -31,7 +33,10 @@ using json = nlohmann::json;
 #define LOGIN_COMMAND "login"
 #define ENTER_COMMAND "enter_library"
 #define GET_ALL_COMMAND "get_books"
+#define GET_COMMAND "get_book"
 #define ADD_COMMAND "add_book"
+#define DELETE_COMMAND "delete_book"
+#define LOGOUT_COMMAND "logout"
 
 int main()
 {
@@ -59,10 +64,20 @@ int main()
             char username[USERNAME_SIZE];
             fgets(username, USERNAME_SIZE - 1, stdin);
             username[strlen(username) - 1] = '\0';
+
+            if (contains_whitespaces(username)) {
+                std::cout << "ERROR: Username cannot contain whitespaces!\n";
+                continue;
+            }
+            
             std::cout << "password=";
             char password[PASSWORD_SIZE];
             fgets(password, PASSWORD_SIZE - 1, stdin);
             password[strlen(password) - 1] = '\0';
+            if (contains_whitespaces(password)) {
+                std::cout << "ERROR: Password cannot contain whitespaces!\n";
+                continue;
+            }
 
             json j;
             j["username"] = username;
@@ -75,9 +90,13 @@ int main()
 
             message = compute_post_request(host, const_cast <char *> ("/api/v1/tema/auth/register"), const_cast <char *> ("application/json"), &json_string, 1, NULL, 0, NULL);
 
+            //std::cout << message << '\n';
+
             send_to_server(sockfd, message);
 
             response = receive_from_server(sockfd);
+
+
 
             //std::cout << response << '\n';
 
@@ -182,9 +201,20 @@ int main()
 
                 json j = json::parse(json_string);
 
-                std::cout << "SUCCESS: " << j.dump() << '\n';
+                std::cout << "SUCCESS: " << j.dump(SPACE_INDENT) << '\n';
 
                 //std::cout << response << '\n';
+            } else {
+                char *start_json = strchr(response, '{');
+                char *end_json = strchr(start_json, '}');
+                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+
+                //std::cout << json_string << '\n';
+
+                json j = json::parse(json_string);
+
+                std::cout << "ERROR: " << j["error"].dump() << '\n';
             }
             continue;
         }
@@ -235,6 +265,121 @@ int main()
             //std::cout << response << '\n';
             if (strstr(response, "HTTP/1.1 2")) {
                 std::cout << "SUCCESS: Carte adaugata cu succes!\n";
+            } else {
+                char *start_json = strchr(response, '{');
+                char *end_json = strchr(start_json, '}');
+                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+
+                //std::cout << json_string << '\n';
+
+                json j = json::parse(json_string);
+
+                std::cout << "ERROR: " << j["error"].dump() << '\n';
+            }
+
+            continue;
+        }
+
+        if (strncmp(command, GET_COMMAND, strlen(GET_COMMAND)) == 0) {
+            std::cout << "id=";
+            char id[FIELD_SIZE];
+            fgets(id, FIELD_SIZE - 1, stdin);
+
+            if (atoi(id) == 0 && strcmp("0", id)) {
+                std::cout << "ERROR: Format id gresit!\n";
+                continue;
+            }
+
+            id[strlen(id) - 1] = '\0';
+
+            char path[FIELD_SIZE];
+            strcpy(path, "/api/v1/tema/library/books/");
+            strcat(path, id);
+
+            message = compute_get_request(host, path, NULL, NULL, 0, token);
+
+            send_to_server(sockfd, message);
+
+            response = receive_from_server(sockfd);
+
+            if (strstr(response, "HTTP/1.1 2")) {
+                char *start_json = strchr(response, '{');
+                char *end_json = strchr(start_json, '}');
+                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+
+                json j = json::parse(json_string);
+
+                std::cout << "SUCCESS: " << j.dump(SPACE_INDENT) << '\n';
+            } else {
+                char *start_json = strchr(response, '{');
+                char *end_json = strchr(start_json, '}');
+                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+
+                //std::cout << json_string << '\n';
+
+                json j = json::parse(json_string);
+
+                std::cout << "ERROR: " << j["error"].dump() << '\n';
+            }
+
+            continue;
+        }
+
+        if (strncmp(command, DELETE_COMMAND, strlen(DELETE_COMMAND)) == 0) {
+            std::cout << "id=";
+            char id[FIELD_SIZE];
+            fgets(id, FIELD_SIZE - 1, stdin);
+
+            if (atoi(id) == 0 && strcmp("0", id)) {
+                std::cout << "ERROR: Format id gresit!\n";
+                continue;
+            }
+
+            id[strlen(id) - 1] = '\0';
+
+            char path[FIELD_SIZE];
+            strcpy(path, "/api/v1/tema/library/books/");
+            strcat(path, id);
+            //std::cout << path << '\n';
+
+            message = compute_delete_request(host, path, token);
+
+            send_to_server(sockfd, message);
+
+            response = receive_from_server(sockfd);
+
+            if (strstr(response, "HTTP/1.1 2")) {
+                std::cout << "SUCCESS: Carte stearsa cu succes!\n";
+            } else {
+                char *start_json = strchr(response, '{');
+                char *end_json = strchr(start_json, '}');
+                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+
+                //std::cout << json_string << '\n';
+
+                json j = json::parse(json_string);
+
+                std::cout << "ERROR: " << j["error"].dump() << '\n';
+            }
+
+            continue;
+        }
+
+        if (strncmp(command, LOGOUT_COMMAND, strlen(LOGOUT_COMMAND)) == 0) {
+            message = compute_get_request(host, const_cast <char *> ("/api/v1/tema/auth/logout"), NULL, &session_cookie, 1, NULL);
+
+            send_to_server(sockfd, message);
+
+            response = receive_from_server(sockfd);
+
+            if (strstr(response, "HTTP/1.1 2")) {
+                std::cout << "SUCCESS: Utilizatorul s-a delogat cu succes!\n";
+                free(token);
+                token = NULL;
             } else {
                 char *start_json = strchr(response, '{');
                 char *end_json = strchr(start_json, '}');

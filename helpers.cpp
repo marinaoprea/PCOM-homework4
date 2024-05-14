@@ -129,3 +129,8 @@ char *basic_extract_json_response(char *str)
 {
     return strstr(str, "{\"");
 }
+
+bool contains_whitespaces(char *str)
+{
+    return strchr(str, ' ') || strchr(str, '\t') || strchr(str, '\r') || strchr(str, '\v') || strchr(str, '\f');
+}

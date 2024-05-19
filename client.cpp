@@ -10,41 +10,105 @@
 #include <iostream>
 
 #include <bits/stdc++.h>
-#include <nlohmann/json.hpp>
-using namespace std;
+#include "nlohmann/json.hpp"
+
 using json = nlohmann::json;
+using namespace std;
 
 #include "client.hpp"
 #include "requests.hpp"
 #include "helpers.hpp"
+#include "utils.hpp"
 
-#define SPACE_INDENT 4
+void parse_error(char *response) {
+    char *start_json = strchr(response, '{');
+    char *end_json = strchr(start_json, '}');
+    char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+    strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
 
-#define HOST "34.246.184.49"
-#define PORT 8080
-#define COMMAND_SIZE 64
-#define USERNAME_SIZE 64
-#define PASSWORD_SIZE 64
-#define COOKIE_SIZE 1024
-#define FIELD_SIZE 64
+    //std::cout << json_string << '\n';
 
-#define EXIT_COMMAND "exit"
-#define REGISTER_COMMAND "register"
-#define LOGIN_COMMAND "login"
-#define ENTER_COMMAND "enter_library"
-#define GET_ALL_COMMAND "get_books"
-#define GET_COMMAND "get_book"
-#define ADD_COMMAND "add_book"
-#define DELETE_COMMAND "delete_book"
-#define LOGOUT_COMMAND "logout"
+    json j = json::parse(json_string);
+
+    std::cout << "ERROR: " << j["error"].dump() << '\n';
+}
+
+int get_credentials(char *username, char *password)
+{
+    std::cout << "username=";
+    fgets(username, USERNAME_SIZE - 1, stdin);
+    username[strlen(username) - 1] = '\0';
+
+    if (contains_whitespaces(username)) {
+        std::cout << "ERROR: Username cannot contain whitespaces!\n";
+        return -1;
+    }
+            
+    std::cout << "password=";
+    fgets(password, PASSWORD_SIZE - 1, stdin);
+    password[strlen(password) - 1] = '\0';
+    if (contains_whitespaces(password)) {
+        std::cout << "ERROR: Password cannot contain whitespaces!\n";
+        return -1;
+    }
+
+    return 0;
+}
+
+void fill_book_fields(char *title, char *author, char *genre, char *publisher, char *page_count, int &count)
+{
+    std::cout << "title=";
+    fgets(title, FIELD_SIZE - 1, stdin);
+    title[strlen(title) - 1] = '\0';
+
+    std::cout << "author=";
+    fgets(author, FIELD_SIZE - 1, stdin);
+    author[strlen(author) - 1] = '\0';
+
+    std::cout << "genre=";
+    fgets(genre, FIELD_SIZE - 1, stdin);
+    genre[strlen(genre) - 1] = '\0';
+
+    std::cout << "publisher=";
+    fgets(publisher, FIELD_SIZE - 1, stdin);
+    publisher[strlen(publisher) - 1] = '\0';
+
+    std::cout << "page_count=";
+    fgets(page_count, FIELD_SIZE - 1, stdin);
+    page_count[strlen(page_count) - 1] = '\0';
+
+    count = atoi(page_count);
+    while (count == 0) {
+        std::cout << "ERROR: Incorrect data type for page count!\n";
+        std::cout << "page_count=";
+        fgets(page_count, FIELD_SIZE - 1, stdin);
+        page_count[strlen(page_count) - 1] = '\0';
+        count = atoi(page_count);
+    }
+}
+
+void get_book_id(char *id)
+{
+    std::cout << "id=";
+    fgets(id, FIELD_SIZE - 1, stdin);
+    id[strlen(id) - 1] = '\0';
+
+    while (atoi(id) == 0 && strcmp("0", id)) {
+        std::cout << "ERROR: Wrong id format!\n";
+        std::cout << "id=";
+        fgets(id, FIELD_SIZE - 1, stdin);
+        id[strlen(id) - 1] = '\0';
+    }
+}
 
 int main()
 {
     char title[FIELD_SIZE], author[FIELD_SIZE], genre[FIELD_SIZE], publisher[FIELD_SIZE], page_count[FIELD_SIZE];
+    int count;
+    char id[FIELD_SIZE];
 
     char host[25];
     strcpy(host, HOST);
-    //int sockfd = open_connection(host, PORT, AF_INET, SOCK_STREAM, 0);
 
     char command[COMMAND_SIZE];
     char *message, *response;
@@ -60,23 +124,13 @@ int main()
         }
 
         if (strncmp(command, REGISTER_COMMAND, strlen(REGISTER_COMMAND)) == 0) {
-            std::cout << "username=";
-            char username[USERNAME_SIZE];
-            fgets(username, USERNAME_SIZE - 1, stdin);
-            username[strlen(username) - 1] = '\0';
-
-            if (contains_whitespaces(username)) {
-                std::cout << "ERROR: Username cannot contain whitespaces!\n";
-                continue;
-            }
+            char username[USERNAME_SIZE], password[PASSWORD_SIZE];
             
-            std::cout << "password=";
-            char password[PASSWORD_SIZE];
-            fgets(password, PASSWORD_SIZE - 1, stdin);
-            password[strlen(password) - 1] = '\0';
-            if (contains_whitespaces(password)) {
-                std::cout << "ERROR: Password cannot contain whitespaces!\n";
-                continue;
+            int rc = get_credentials(username, password);
+            while (rc) {
+                memset(username, 0, USERNAME_SIZE);
+                memset(password, 0, PASSWORD_SIZE);
+                rc = get_credentials(username, password);
             }
 
             json j;
@@ -96,29 +150,28 @@ int main()
 
             response = receive_from_server(sockfd);
 
-
-
             //std::cout << response << '\n';
 
             if (strstr(response, "HTTP/1.1 2")) {
-                std::cout << "SUCCESS: Utilizator inregistrat cu succes!\n";
+                std::cout << "SUCCESS: User registered successfully!\n";
             } else {
-                if (strstr(response, "username already taken") == 0) {
-                    std::cout << "ERROR: Nume de utilizator folosit deja!\n";
-                }
+                if (strstr(response, "username already taken") == 0)
+                    std::cout << "ERROR: Username already taken!\n";
+                else
+                    parse_error(response);
             }
             continue;
         }
 
         if (strncmp(command, LOGIN_COMMAND, strlen(LOGIN_COMMAND)) == 0) {
-            std::cout << "username=";
-            char username[USERNAME_SIZE];
-            fgets(username, USERNAME_SIZE - 1, stdin);
-            username[strlen(username) - 1] = '\0';
-            std::cout << "password=";
-            char password[PASSWORD_SIZE];
-            fgets(password, PASSWORD_SIZE - 1, stdin);
-            password[strlen(password) - 1] = '\0';
+            char username[USERNAME_SIZE], password[PASSWORD_SIZE];
+
+            int rc = get_credentials(username, password);
+            while (rc) {
+                memset(username, 0, USERNAME_SIZE);
+                memset(password, 0, PASSWORD_SIZE);
+                rc = get_credentials(username, password);
+            }
 
             json j;
             j["username"] = username;
@@ -140,7 +193,7 @@ int main()
             //std::cout << response;
 
             if (strstr(response, "HTTP/1.1 2")) {
-                std::cout << "SUCCESS: Utilizatorul a fost logat cu succes!\n";
+                std::cout << "SUCCESS: User logged in successfully!\n";
                 char *cookie_start = strstr(response, "connect.sid");
                 char *cookie_end = strstr(cookie_start, ";");
 
@@ -150,7 +203,7 @@ int main()
 
                 //std::cout << session_cookie << '\n';
             } else {
-                    std::cout << "ERROR: Credentialele nu sunt bune!\n";
+                    std::cout << "ERROR: Credentials are not good!\n";
             }
             continue;
         }
@@ -165,7 +218,7 @@ int main()
             //std::cout << response << '\n';
 
             if (strstr(response, "HTTP/1.1 2")) {
-                std::cout << "SUCCESS: Utilizatorul are acces la biblioteca!\n";
+                std::cout << "SUCCESS: User can access library!\n";
 
                 char *start_json = strchr(response, '{');
                 char *end_json = strchr(start_json, '}');
@@ -205,46 +258,13 @@ int main()
 
                 //std::cout << response << '\n';
             } else {
-                char *start_json = strchr(response, '{');
-                char *end_json = strchr(start_json, '}');
-                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
-
-                //std::cout << json_string << '\n';
-
-                json j = json::parse(json_string);
-
-                std::cout << "ERROR: " << j["error"].dump() << '\n';
+                parse_error(response);
             }
             continue;
         }
 
         if (strncmp(command, ADD_COMMAND, strlen(ADD_COMMAND)) == 0) {
-            std::cout << "title=";
-            fgets(title, FIELD_SIZE - 1, stdin);
-            title[strlen(title) - 1] = '\0';
-
-            std::cout << "author=";
-            fgets(author, FIELD_SIZE - 1, stdin);
-            author[strlen(author) - 1] = '\0';
-
-            std::cout << "genre=";
-            fgets(genre, FIELD_SIZE - 1, stdin);
-            genre[strlen(genre) - 1] = '\0';
-
-            std::cout << "publisher=";
-            fgets(publisher, FIELD_SIZE - 1, stdin);
-            publisher[strlen(publisher) - 1] = '\0';
-
-            std::cout << "page_count=";
-            fgets(page_count, FIELD_SIZE - 1, stdin);
-            page_count[strlen(page_count) - 1] = '\0';
-
-            int count = atoi(page_count);
-            if (count == 0) {
-                std::cout << "ERROR: Tip de date incorect pentru pagini!\n";
-                continue;
-            }
+            fill_book_fields(title, author, genre, publisher, page_count, count);
 
             json j;
             j["title"] = title;
@@ -264,34 +284,16 @@ int main()
 
             //std::cout << response << '\n';
             if (strstr(response, "HTTP/1.1 2")) {
-                std::cout << "SUCCESS: Carte adaugata cu succes!\n";
+                std::cout << "SUCCESS: Book added successfully!\n";
             } else {
-                char *start_json = strchr(response, '{');
-                char *end_json = strchr(start_json, '}');
-                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
-
-                //std::cout << json_string << '\n';
-
-                json j = json::parse(json_string);
-
-                std::cout << "ERROR: " << j["error"].dump() << '\n';
+                parse_error(response);
             }
 
             continue;
         }
 
         if (strncmp(command, GET_COMMAND, strlen(GET_COMMAND)) == 0) {
-            std::cout << "id=";
-            char id[FIELD_SIZE];
-            fgets(id, FIELD_SIZE - 1, stdin);
-
-            if (atoi(id) == 0 && strcmp("0", id)) {
-                std::cout << "ERROR: Format id gresit!\n";
-                continue;
-            }
-
-            id[strlen(id) - 1] = '\0';
+            get_book_id(id);
 
             char path[FIELD_SIZE];
             strcpy(path, "/api/v1/tema/library/books/");
@@ -313,32 +315,14 @@ int main()
 
                 std::cout << "SUCCESS: " << j.dump(SPACE_INDENT) << '\n';
             } else {
-                char *start_json = strchr(response, '{');
-                char *end_json = strchr(start_json, '}');
-                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
-
-                //std::cout << json_string << '\n';
-
-                json j = json::parse(json_string);
-
-                std::cout << "ERROR: " << j["error"].dump() << '\n';
+                parse_error(response);
             }
 
             continue;
         }
 
         if (strncmp(command, DELETE_COMMAND, strlen(DELETE_COMMAND)) == 0) {
-            std::cout << "id=";
-            char id[FIELD_SIZE];
-            fgets(id, FIELD_SIZE - 1, stdin);
-
-            if (atoi(id) == 0 && strcmp("0", id)) {
-                std::cout << "ERROR: Format id gresit!\n";
-                continue;
-            }
-
-            id[strlen(id) - 1] = '\0';
+            get_book_id(id);
 
             char path[FIELD_SIZE];
             strcpy(path, "/api/v1/tema/library/books/");
@@ -352,18 +336,9 @@ int main()
             response = receive_from_server(sockfd);
 
             if (strstr(response, "HTTP/1.1 2")) {
-                std::cout << "SUCCESS: Carte stearsa cu succes!\n";
+                std::cout << "SUCCESS: Book was deleted successfully!\n";
             } else {
-                char *start_json = strchr(response, '{');
-                char *end_json = strchr(start_json, '}');
-                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
-
-                //std::cout << json_string << '\n';
-
-                json j = json::parse(json_string);
-
-                std::cout << "ERROR: " << j["error"].dump() << '\n';
+                parse_error(response);
             }
 
             continue;
@@ -377,20 +352,11 @@ int main()
             response = receive_from_server(sockfd);
 
             if (strstr(response, "HTTP/1.1 2")) {
-                std::cout << "SUCCESS: Utilizatorul s-a delogat cu succes!\n";
+                std::cout << "SUCCESS: User logged out successfully!\n";
                 free(token);
                 token = NULL;
             } else {
-                char *start_json = strchr(response, '{');
-                char *end_json = strchr(start_json, '}');
-                char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-                strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
-
-                //std::cout << json_string << '\n';
-
-                json j = json::parse(json_string);
-
-                std::cout << "ERROR: " << j["error"].dump() << '\n';
+                parse_error(response);
             }
 
             continue;

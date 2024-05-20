@@ -30,7 +30,7 @@ char *compute_get_request(char *host, char *url, char *query_params,
     compute_message(message, line);
 
     // Step 3 (optional): add headers and/or cookies, according to the protocol format
-    if (cookies != NULL) {
+    if (cookies != NULL && cookies_count) {
        memset(line, 0, LINELEN);
        sprintf(line, "Cookie: ");
        for (int i = 0; i < cookies_count - 1; i++) {
@@ -89,7 +89,7 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
     compute_message(message, line);
 
     // Step 4 (optional): add cookies
-    if (cookies != NULL) {
+    if (cookies != NULL && cookies_count) {
        memset(line, 0, LINELEN);
        sprintf(line, "Cookie: ");
        for (int i = 0; i < cookies_count - 1; i++) {

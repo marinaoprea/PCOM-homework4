@@ -6,5 +6,8 @@ client: client.cpp
 run: client
 	./client
 
+zip:
+	zip -r 323CA_Oprea_Marina_Tema4PC.zip *.cpp *.hpp ./nlohmann/*.hpp Makefile README.md
+
 clean:
-	rm -f *.o client
+	rm -f *.o client *.zip

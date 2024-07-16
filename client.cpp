@@ -23,10 +23,11 @@ using namespace std;
 void parse_error(char *response) {
     char *start_json = strchr(response, '{');
     char *end_json = strchr(start_json, '}');
-    char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-    strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+    char *json_string = (char *)calloc((int)(end_json - start_json) + 2, 
+                        sizeof(char));
+    DIE(!json_string, "calloc failed");
 
-    //std::cout << json_string << '\n';
+    strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
 
     json j = json::parse(json_string);
 
@@ -67,7 +68,8 @@ int get_credentials(char *username, char *password, char *error_msg)
     return rc;
 }
 
-int fill_book_fields(char *title, char *author, char *genre, char *publisher, char *page_count, int &count, char *err_msg)
+int fill_book_fields(char *title, char *author, char *genre, char *publisher,
+                     char *page_count, int &count, char *err_msg)
 {
     int rc = 0;
 
@@ -139,11 +141,6 @@ void register_command(int sockfd)
     memset(error_msg, 0, FIELD_SIZE * 6);
 
     int rc = get_credentials(username, password, error_msg);
-    /*while (rc) {
-        memset(username, 0, USERNAME_SIZE);
-        memset(password, 0, PASSWORD_SIZE);
-        rc = get_credentials(username, password);
-    }*/
     if (rc) {
         std::cout << error_msg << '\n';
         return;
@@ -154,19 +151,18 @@ void register_command(int sockfd)
     j["password"] = password;
 
     char *json_string = (char *)calloc(strlen(j.dump().c_str()), sizeof(char));
+    DIE(!json_string, "calloc failed");
+
     strcpy(json_string, const_cast <char *> (j.dump().c_str()));
 
-    //std::cout << json_string << '\n';
-
-    message = compute_post_request(const_cast<char *> (HOST), const_cast <char *> ("/api/v1/tema/auth/register"), const_cast <char *> ("application/json"), &json_string, 1, NULL, 0, NULL);
-
-    //std::cout << message << '\n';
+    message = compute_post_request(const_cast<char *> (HOST), 
+                const_cast <char *> ("/api/v1/tema/auth/register"), 
+                const_cast <char *> ("application/json"), &json_string, 1,
+                NULL, 0, NULL);
 
     send_to_server(sockfd, message);
 
     response = receive_from_server(sockfd);
-
-    //std::cout << response << '\n';
 
     if (strstr(response, "HTTP/1.1 2")) {
         std::cout << "SUCCESS: User registered successfully!\n";
@@ -189,11 +185,6 @@ void login_command(int sockfd, char **session_cookie)
     memset(error_msg, 0, FIELD_SIZE * 6);
 
     int rc = get_credentials(username, password, error_msg);
-    /*while (rc) {
-        memset(username, 0, USERNAME_SIZE);
-        memset(password, 0, PASSWORD_SIZE);
-        rc = get_credentials(username, password);
-    }*/
     if (rc) {
         std::cout << error_msg << '\0';
         return;
@@ -203,33 +194,33 @@ void login_command(int sockfd, char **session_cookie)
     j["username"] = username;
     j["password"] = password;
 
-    char *json_string = (char *)calloc(strlen(j.dump().c_str()) + 1, sizeof(char));
+    char *json_string = (char *)calloc(strlen(j.dump().c_str()) + 1, 
+                                       sizeof(char));
+    DIE(!json_string, "calloc failed");
+
     strcpy(json_string, const_cast <char *> (j.dump().c_str()));
 
-    //   std::cout << json_string << '\n';
-
-    message = compute_post_request(const_cast<char *>(HOST), const_cast <char *> ("/api/v1/tema/auth/login"), const_cast <char *> ("application/json"), &json_string, 1, NULL, 0, NULL);
-
-    // std::cout << message;
+    message = compute_post_request(const_cast<char *>(HOST), 
+                const_cast <char *> ("/api/v1/tema/auth/login"), 
+                const_cast <char *> ("application/json"), &json_string, 1, 
+                NULL, 0, NULL);
 
     send_to_server(sockfd, message);
 
     response = receive_from_server(sockfd);
-
-    //std::cout << response;
 
     if (strstr(response, "HTTP/1.1 2")) {
         std::cout << "SUCCESS: User logged in successfully!\n";
         char *cookie_start = strstr(response, "connect.sid");
         char *cookie_end = strstr(cookie_start, ";");
 
-        *session_cookie = (char *)calloc((int) (cookie_end - cookie_start), sizeof(char));
+        *session_cookie = (char *)calloc((int) (cookie_end - cookie_start),
+                                         sizeof(char));
+        DIE(!session_cookie, "calloc failed");
 
-        strncpy(*session_cookie, cookie_start, (int)(cookie_end - cookie_start));
-
-        //std::cout << *session_cookie << '\n';
+        strncpy(*session_cookie, cookie_start, 
+                (int)(cookie_end - cookie_start));
     } else {
-        //std::cout << "ERROR: Credentials are not good!\n";
         parse_error(response);
     }
 
@@ -244,29 +235,33 @@ void enter_library_command(int sockfd, char *session_cookie, char **token)
     int cookies_count = 0;
     if (session_cookie)
         cookies_count = 1;
-    message = compute_get_request(const_cast<char *>(HOST), const_cast <char *> ("/api/v1/tema/library/access"), NULL, &session_cookie, cookies_count, NULL);
+    message = compute_get_request(const_cast<char *>(HOST), 
+                    const_cast <char *> ("/api/v1/tema/library/access"), NULL, 
+                    &session_cookie, cookies_count, NULL);
 
     send_to_server(sockfd, message);
 
     response = receive_from_server(sockfd);
-
-    //std::cout << response << '\n';
 
     if (strstr(response, "HTTP/1.1 2")) {
         std::cout << "SUCCESS: User can access library!\n";
 
         char *start_json = strchr(response, '{');
         char *end_json = strchr(start_json, '}');
-        char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+        char *json_string = (char *)calloc((int)(end_json - start_json) + 2, 
+                                            sizeof(char));
+        DIE(!json_string, "calloc failed");
+
         strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
 
-        //std::cout << json_string << '\n';
-
         json j = json::parse(json_string);
-        //std::cout << j["token"].dump().c_str() << "\n";
 
-        *token = (char *)calloc(strlen(j["token"].dump().c_str()) + 1, sizeof(int));
-        strncpy(*token, j["token"].dump().c_str() + 1, strlen(j["token"].dump().c_str()) - 2);
+        *token = (char *)calloc(strlen(j["token"].dump().c_str()) + 1, 
+                                sizeof(int));
+        DIE(!token, "calloc failed");
+
+        strncpy(*token, j["token"].dump().c_str() + 1, 
+                strlen(j["token"].dump().c_str()) - 2);
     } else {
         parse_error(response);
     }
@@ -279,27 +274,26 @@ void get_all_command(int sockfd, char *token)
 {
     char *message, *response;
 
-    message = compute_get_request(const_cast<char *>(HOST), const_cast <char *> ("/api/v1/tema/library/books"), NULL, NULL, 0, token);
+    message = compute_get_request(const_cast<char *>(HOST), 
+                    const_cast <char *> ("/api/v1/tema/library/books"), NULL, 
+                    NULL, 0, token);
 
     send_to_server(sockfd, message);
 
     response = receive_from_server(sockfd);
 
     if (strstr(response, "HTTP/1.1 2")) {
-        //std::cout << token << '\n';
-
         char *start_json = strchr(response, '[');
         char *end_json = strchr(start_json, ']');
-        char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
-        strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
+        char *json_string = (char *)calloc((int)(end_json - start_json) + 2, 
+                                            sizeof(char));
+        DIE(!json_string, "calloc failed");
 
-        //std::cout << json_string << '\n';
+        strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
 
         json j = json::parse(json_string);
 
         std::cout << "SUCCESS: " << j.dump(SPACE_INDENT) << '\n';
-
-        //std::cout << response << '\n';
     } else {
         parse_error(response);
     }
@@ -310,14 +304,16 @@ void get_all_command(int sockfd, char *token)
 
 void add_book_command(int sockfd, char *token)
 {
-    char title[FIELD_SIZE], author[FIELD_SIZE], genre[FIELD_SIZE], publisher[FIELD_SIZE], page_count[FIELD_SIZE];
+    char title[FIELD_SIZE], author[FIELD_SIZE], genre[FIELD_SIZE], 
+         publisher[FIELD_SIZE], page_count[FIELD_SIZE];
     int count;
 
     char *message, *response;
     char err_msg[6 * FIELD_SIZE];
     memset(err_msg, 0, 6 * FIELD_SIZE);
 
-    int rc = fill_book_fields(title, author, genre, publisher, page_count, count, err_msg);
+    int rc = fill_book_fields(title, author, genre, publisher, page_count, 
+                              count, err_msg);
     if (rc) {
         std::cout << err_msg << '\n';
         return;
@@ -330,16 +326,20 @@ void add_book_command(int sockfd, char *token)
     j["publisher"] = publisher;
     j["page_count"] = count;
 
-    char *json_string = (char *)calloc(strlen(j.dump().c_str()) + 1, sizeof(char));
+    char *json_string = (char *)calloc(strlen(j.dump().c_str()) + 1, 
+                                       sizeof(char));
+    DIE(!json_string, "calloc failed");
     strcpy(json_string, (j.dump().c_str()));
 
-    message = compute_post_request(const_cast <char *>(HOST), const_cast <char *> ("/api/v1/tema/library/books"), const_cast <char *> ("application/json"), &json_string, 1, NULL, 0, token);
+    message = compute_post_request(const_cast <char *>(HOST), 
+                const_cast <char *> ("/api/v1/tema/library/books"), 
+                const_cast <char *> ("application/json"), &json_string, 1, 
+                NULL, 0, token);
 
     send_to_server(sockfd, message);
 
     response = receive_from_server(sockfd);
 
-    //std::cout << response << '\n';
     if (strstr(response, "HTTP/1.1 2")) {
         std::cout << "SUCCESS: Book added successfully!\n";
     } else {
@@ -361,7 +361,8 @@ void get_book_command(int sockfd, char *token)
     strcpy(path, "/api/v1/tema/library/books/");
     strcat(path, id);
 
-    message = compute_get_request(const_cast <char *>(HOST), path, NULL, NULL, 0, token);
+    message = compute_get_request(const_cast <char *>(HOST), path, NULL, 
+                                  NULL, 0, token);
 
     send_to_server(sockfd, message);
 
@@ -370,7 +371,10 @@ void get_book_command(int sockfd, char *token)
     if (strstr(response, "HTTP/1.1 2")) {
         char *start_json = strchr(response, '{');
         char *end_json = strchr(start_json, '}');
-        char *json_string = (char *)calloc((int)(end_json - start_json) + 2, sizeof(char));
+        char *json_string = (char *)calloc((int)(end_json - start_json) + 2, 
+                                            sizeof(char));
+        DIE(!json_string, "calloc failed");
+
         strncpy(json_string, start_json, (int)(end_json - start_json) + 1);
 
         json j = json::parse(json_string);
@@ -394,7 +398,6 @@ void delete_book_command(int sockfd, char *token)
     char path[FIELD_SIZE];
     strcpy(path, "/api/v1/tema/library/books/");
     strcat(path, id);
-    //std::cout << path << '\n';
 
     message = compute_delete_request(const_cast <char *>(HOST), path, token);
 
@@ -412,15 +415,17 @@ void delete_book_command(int sockfd, char *token)
     free(response);
 }
 
-void logout_command(int sockfd, char *session_cookie, char **token)
+void logout_command(int sockfd, char **session_cookie, char **token)
 {
     char *message, *response;
 
     int cookies_count = 0;
-    if (session_cookie)
+    if (*session_cookie)
         cookies_count = 1;
 
-    message = compute_get_request(const_cast <char *>(HOST), const_cast <char *> ("/api/v1/tema/auth/logout"), NULL, &session_cookie, cookies_count, NULL);
+    message = compute_get_request(const_cast <char *>(HOST), 
+                    const_cast <char *> ("/api/v1/tema/auth/logout"), NULL, 
+                    session_cookie, cookies_count, NULL);
 
     send_to_server(sockfd, message);
 
@@ -430,6 +435,8 @@ void logout_command(int sockfd, char *session_cookie, char **token)
         std::cout << "SUCCESS: User logged out successfully!\n";
         free(*token);
         *token = NULL;
+        free(*session_cookie);
+        *session_cookie = NULL;
     } else {
         parse_error(response);
     }
@@ -446,8 +453,12 @@ int main()
 
     while (fgets(command, COMMAND_SIZE - 1, stdin)) {
         int sockfd = open_connection(const_cast<char *> (HOST), PORT, AF_INET, SOCK_STREAM, 0);
-        
+
         if (strncmp(command, EXIT_COMMAND, strlen(EXIT_COMMAND)) == 0) {
+            if (session_cookie)
+                free(session_cookie);
+            if (token)
+                free(token);
             close_connection(sockfd);
             break;
         }
@@ -488,7 +499,7 @@ int main()
         }
 
         if (strncmp(command, LOGOUT_COMMAND, strlen(LOGOUT_COMMAND)) == 0) {
-            logout_command(sockfd, session_cookie, &token);
+            logout_command(sockfd, &session_cookie, &token);
             continue;
         }
 

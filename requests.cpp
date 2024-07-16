@@ -29,7 +29,8 @@ char *compute_get_request(char *host, char *url, char *query_params,
     sprintf(line, "Host: %s", host);
     compute_message(message, line);
 
-    // Step 3 (optional): add headers and/or cookies, according to the protocol format
+    // Step 3 (optional): add headers and/or cookies, according to the protocol
+    // format
     if (cookies != NULL && cookies_count) {
        memset(line, 0, LINELEN);
        sprintf(line, "Cookie: ");
@@ -67,10 +68,12 @@ char *compute_post_request(char *host, char *url, char* content_type, char **bod
     memset(line, 0, LINELEN);
     sprintf(line, "Host: %s", host);
     compute_message(message, line);
-    /* Step 3: add necessary headers (Content-Type and Content-Length are mandatory)
-            in order to write Content-Length you must first compute the message size
+    /* Step 3: add necessary headers (Content-Type and Content-Length are
+    mandatory); in order to write Content-Length you must first compute 
+    the message size
     */
-    int type_flag = (strcmp(content_type, "application/x-www-form-urlencoded") == 0);
+    int type_flag = (strcmp(content_type, "application/x-www-form-urlencoded") 
+                     == 0);
     int total_len = 0;
     for (int i = 0; i < body_data_fields_count; i++) {
         total_len += strlen(body_data[i]);
@@ -131,7 +134,8 @@ char *compute_delete_request(char *host, char *url, char *token)
     sprintf(line, "Host: %s", host);
     compute_message(message, line);
 
-    // Step 3 (optional): add headers and/or cookies, according to the protocol format
+    // Step 3 (optional): add headers and/or cookies, according to the 
+    // protocol format
     if (token) {
         memset(line, 0, LINELEN);
         sprintf(line, "Authorization: Bearer %s", token);

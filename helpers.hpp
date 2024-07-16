@@ -25,5 +25,6 @@ char *receive_from_server(int sockfd);
 // extracts and returns a JSON from a server response
 char *basic_extract_json_response(char *str);
 
+// verifies if string contains any whitespace (' ', '\r', '\t\, '\v', '\f') 
 bool contains_whitespaces(char *str);
 #endif
